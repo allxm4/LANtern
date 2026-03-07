@@ -6,6 +6,16 @@ Built for homelabs running on Linux (Raspberry Pi, NAS, mini PC) on the same LAN
 
 ---
 
+## Screenshots
+
+<img width="571" height="981" alt="Image" src="https://github.com/user-attachments/assets/b06fd926-c92a-4286-b4d4-5e521b48fc93" />
+<img width="571" height="981" alt="Image" src="https://github.com/user-attachments/assets/98da389a-9f78-48d8-8f2b-a2a816c1ff0e" />
+<img width="571" height="981" alt="Image" src="https://github.com/user-attachments/assets/2f3ab3f8-c877-40e9-a923-6098923b6d04" />
+<img width="571" height="981" alt="Image" src="https://github.com/user-attachments/assets/ca0c6f2b-a184-442b-ae90-cb14832844dc" />
+<img width="571" height="981" alt="Image" src="https://github.com/user-attachments/assets/7b9d709e-9141-4f8d-8707-aa492709e180" />
+
+---
+
 ## Why
 
 There are great projects out there like Upsnap that handle WoL along with status monitoring, shutdown, and more. For my setup though, my homelab mini PCs are managed through MeshCentral via Intel AMT, which keeps a persistent connection alive, meaning they always show as online regardless of whether they're actually powered on. That made status-based tools less useful for my specific case.
