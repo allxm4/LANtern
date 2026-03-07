@@ -118,7 +118,7 @@ docker exec LANtern node reset-pin.js 1234      # set a new PIN
 To immediately log out all active sessions:
 
 ```bash
-docker compose restart wol
+docker compose restart LANtern
 ```
 
 ---

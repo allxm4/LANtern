@@ -5,8 +5,8 @@ let editingId = null;
 let sessionToken = null;
 let pinEnabled = false;
 
-const TOKEN_KEY = 'wol_token';
-const TOKEN_EXP_KEY = 'wol_token_exp';
+const TOKEN_KEY = 'LANtern_token';
+const TOKEN_EXP_KEY = 'LANtern_token_exp';
 const SESSION_CLIENT_HOURS = 8;
 
 function getStoredToken() {

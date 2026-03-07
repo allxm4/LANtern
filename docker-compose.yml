@@ -1,5 +1,5 @@
 services:
-  wol:
+  LANtern:
     build: .
     image: lantern:latest
     container_name: LANtern
@@ -20,7 +20,7 @@ services:
   #   network_mode: host
   #   command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TOKEN}
   #   depends_on:
-  #     - wol
+  #     - LANtern
 
   # netbird:
   #   image: netbirdio/netbird:latest
@@ -36,7 +36,7 @@ services:
   #   volumes:
   #     - netbird_data:/etc/netbird
   #   depends_on:
-  #     - wol
+  #     - LANtern
 
 # volumes:
 #   netbird_data:

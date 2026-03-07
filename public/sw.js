@@ -1,4 +1,4 @@
-const CACHE = 'wol-v1';
+const CACHE = 'LANtern-v1';
 const SHELL = ['/', '/style.css', '/app.js', '/manifest.json', '/icons/icon-192.png'];
 
 self.addEventListener('install', (e) => {
