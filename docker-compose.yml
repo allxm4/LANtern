@@ -1,0 +1,42 @@
+services:
+  wol:
+    build: .
+    image: lantern:latest
+    container_name: LANtern
+    network_mode: host
+    environment:
+      - PORT=3000
+      - DEVICES_FILE=/config/devices.json
+      - CONFIG_FILE=/config/config.json
+      # - SESSION_TTL_HOURS=8
+    volumes:
+      - ./devices.json:/config/devices.json
+      - ./config.json:/config/config.json
+    restart: unless-stopped
+
+  # cloudflared:
+  #   image: cloudflare/cloudflared:latest
+  #   restart: unless-stopped
+  #   network_mode: host
+  #   command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TOKEN}
+  #   depends_on:
+  #     - wol
+
+  # netbird:
+  #   image: netbirdio/netbird:latest
+  #   restart: unless-stopped
+  #   network_mode: host
+  #   cap_add:
+  #     - NET_ADMIN
+  #     - SYS_MODULE
+  #   devices:
+  #     - /dev/net/tun:/dev/net/tun
+  #   environment:
+  #     - NB_SETUP_KEY=${NETBIRD_SETUP_KEY}
+  #   volumes:
+  #     - netbird_data:/etc/netbird
+  #   depends_on:
+  #     - wol
+
+# volumes:
+#   netbird_data:

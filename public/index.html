@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0b0f" id="themeColorMeta">
+  <title>LANtern</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" href="/icons/icon-192.png">
+
+  <!-- iOS PWA -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="LANtern">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+  <!-- ─── PIN Screen ─────────────────────────────────────────────────── -->
+  <div id="pinScreen" class="pin-screen" style="display:none">
+    <div class="pin-card">
+      <img class="pin-logo" src="/icons/icon-192.png" alt="LANtern">
+      <h1 class="pin-title">LANtern</h1>
+      <p class="pin-subtitle">Enter PIN to unlock</p>
+
+      <div class="pin-dots" id="pinDots">
+        <span class="pin-dot" data-i="0"></span>
+        <span class="pin-dot" data-i="1"></span>
+        <span class="pin-dot" data-i="2"></span>
+        <span class="pin-dot" data-i="3"></span>
+      </div>
+
+      <p class="pin-error" id="pinError" aria-live="assertive"></p>
+
+      <div class="numpad" id="numpad">
+        <button class="numpad-key" data-digit="1">1</button>
+        <button class="numpad-key" data-digit="2">2</button>
+        <button class="numpad-key" data-digit="3">3</button>
+        <button class="numpad-key" data-digit="4">4</button>
+        <button class="numpad-key" data-digit="5">5</button>
+        <button class="numpad-key" data-digit="6">6</button>
+        <button class="numpad-key" data-digit="7">7</button>
+        <button class="numpad-key" data-digit="8">8</button>
+        <button class="numpad-key" data-digit="9">9</button>
+        <span></span>
+        <button class="numpad-key" data-digit="0">0</button>
+        <button class="numpad-key numpad-del" id="pinBackspace" aria-label="Backspace">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
+            <line x1="18" y1="9" x2="12" y2="15"/>
+            <line x1="12" y1="9" x2="18" y2="15"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── App ────────────────────────────────────────────────────────── -->
+  <div id="app" style="display:none">
+    <header class="header">
+      <div class="header-left">
+        <img class="logo" src="/icons/icon-192.png" alt="LANtern">
+        <span class="logo-text">LANtern</span>
+      </div>
+      <div class="header-right">
+        <button class="btn-icon" id="lockBtn" title="Lock app" aria-label="Lock app" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </button>
+        <button class="btn-icon" id="settingsBtn" title="Settings" aria-label="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
+        <button class="btn-icon" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">
+          <svg id="sunIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <svg id="moonIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <button class="btn-primary" id="addDeviceBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          <span>Add Device</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="main">
+      <div id="deviceGrid" class="device-grid"></div>
+      <div id="emptyState" class="empty-state" style="display:none">
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+            <rect x="2" y="3" width="20" height="14" rx="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+        </div>
+        <h2>No devices yet</h2>
+        <p>Add your first device to start sending wake packets</p>
+        <button class="btn-primary" id="emptyAddBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          <span>Add Device</span>
+        </button>
+      </div>
+    </main>
+  </div>
+
+  <!-- ─── Add / Edit Device Modal ─────────────────────────────────────── -->
+  <div id="modal" class="modal-overlay" role="dialog" aria-labelledby="modalTitle" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modalTitle">Add Device</h2>
+        <button class="btn-icon" id="closeModal" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <form id="deviceForm" novalidate>
+        <div class="form-group">
+          <label for="deviceName">Name</label>
+          <input type="text" id="deviceName" placeholder="Main Server" required autocomplete="off" maxlength="64">
+        </div>
+        <div class="form-group">
+          <label for="deviceMAC">MAC Address</label>
+          <input type="text" id="deviceMAC" placeholder="AA:BB:CC:DD:EE:FF" required autocomplete="off" spellcheck="false" maxlength="17">
+          <p class="form-hint">Accepted: AA:BB:CC:DD:EE:FF &nbsp;/&nbsp; AA-BB-CC-DD-EE-FF &nbsp;/&nbsp; AABBCCDDEEFF</p>
+        </div>
+        <div class="form-group">
+          <label for="deviceIP">IP Address <span class="optional">(optional)</span></label>
+          <input type="text" id="deviceIP" placeholder="192.168.1.100" autocomplete="off" maxlength="39">
+        </div>
+        <div class="form-group">
+          <label for="deviceBroadcast">Broadcast Address <span class="optional">(optional)</span></label>
+          <input type="text" id="deviceBroadcast" placeholder="255.255.255.255" autocomplete="off" maxlength="39">
+          <p class="form-hint">This is the highest IP in your subnet, <strong>not</strong> the subnet mask. For a device at 192.168.1.x on a /24 network, enter 192.168.1.255. Defaults to 255.255.255.255.</p>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="cancelBtn">Cancel</button>
+          <button type="submit" class="btn-primary" id="saveBtn">Save Device</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ─── Settings Modal ──────────────────────────────────────────────── -->
+  <div id="settingsModal" class="modal-overlay" role="dialog" aria-labelledby="settingsTitle" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="settingsTitle">Settings</h2>
+        <button class="btn-icon" id="closeSettings" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <section class="settings-section">
+        <div class="settings-section-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          <h3>PIN Lock</h3>
+        </div>
+        <p class="settings-desc" id="pinStatusText"></p>
+
+        <!-- Set PIN form (shown when no PIN set) -->
+        <form id="setPinForm" class="pin-form" novalidate style="display:none">
+          <div class="form-group">
+            <label for="newPinSet">New PIN <span class="optional">(4–8 digits)</span></label>
+            <input type="password" id="newPinSet" inputmode="numeric" pattern="\d*" placeholder="••••" maxlength="8" autocomplete="new-password">
+          </div>
+          <div class="form-group">
+            <label for="confirmPinSet">Confirm PIN</label>
+            <input type="password" id="confirmPinSet" inputmode="numeric" pattern="\d*" placeholder="••••" maxlength="8" autocomplete="new-password">
+          </div>
+          <div class="modal-actions">
+            <button type="submit" class="btn-primary">Enable PIN</button>
+          </div>
+        </form>
+
+        <!-- Change / remove PIN form (shown when PIN is set) -->
+        <form id="changePinForm" class="pin-form" novalidate style="display:none">
+          <div class="form-group">
+            <label for="currentPin">Current PIN</label>
+            <input type="password" id="currentPin" inputmode="numeric" pattern="\d*" placeholder="••••" maxlength="8" autocomplete="current-password">
+          </div>
+          <div class="form-group">
+            <label for="newPinChange">New PIN <span class="optional">(4–8 digits)</span></label>
+            <input type="password" id="newPinChange" inputmode="numeric" pattern="\d*" placeholder="••••" maxlength="8" autocomplete="new-password">
+          </div>
+          <div class="form-group">
+            <label for="confirmPinChange">Confirm New PIN</label>
+            <input type="password" id="confirmPinChange" inputmode="numeric" pattern="\d*" placeholder="••••" maxlength="8" autocomplete="new-password">
+          </div>
+          <div class="modal-actions modal-actions-split">
+            <button type="button" class="btn-danger-outline" id="removePinBtn">Remove PIN</button>
+            <button type="submit" class="btn-primary">Update PIN</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  </div>
+
+  <!-- ─── Confirm Dialog ───────────────────────────────────────────────── -->
+  <div id="confirmOverlay" class="modal-overlay" style="display:none">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h2 id="confirmTitle">Confirm</h2>
+      </div>
+      <p id="confirmMessage" class="confirm-message"></p>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="confirmCancel">Cancel</button>
+        <button class="btn-danger" id="confirmOk">Remove</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Toast ────────────────────────────────────────────────────────── -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+node_modules
+devices.json
+config.json
+.env
+.git
+*.log
