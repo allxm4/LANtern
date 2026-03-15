@@ -2,6 +2,7 @@ services:
   LANtern:
     build: .
     image: lantern:latest
+    pull_policy: build
     container_name: LANtern
     network_mode: host
     environment:
