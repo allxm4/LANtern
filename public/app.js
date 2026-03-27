@@ -889,7 +889,7 @@ function bindEvents() {
   // VMs
   document.getElementById('addVMBtn').addEventListener('click', () => openVMModal());
   document.getElementById('vmEmptyAddBtn').addEventListener('click', () => openVMModal());
-  document.getElementById('vmGoToSettingsBtn').addEventListener('click', openSettings);
+  document.getElementById('vmGoToSettingsBtn').addEventListener('click', openNodeModal);
   document.getElementById('vmForm').addEventListener('submit', submitVM);
   document.getElementById('closeVMModal').addEventListener('click', closeVMModal);
   document.getElementById('cancelVMBtn').addEventListener('click', closeVMModal);
