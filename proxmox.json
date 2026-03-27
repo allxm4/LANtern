@@ -1,4 +1,21 @@
 {
-  "nodes": [],
-  "vms": []
+  "nodes": [
+    {
+      "id": "84f84253-55b2-4842-83c2-a98fd74b2415",
+      "name": "guardian",
+      "host": "192.168.210.100:8006",
+      "user": "homeassistant@pve",
+      "tokenName": "ha-token-05",
+      "tokenValue": "13fa463b-1efe-414b-b8f8-864f06ae500e"
+    }
+  ],
+  "vms": [
+    {
+      "id": "d71ed8ce-741a-480c-9a82-8f5bbaebe168",
+      "name": "Windows",
+      "vmid": "180",
+      "nodeId": "84f84253-55b2-4842-83c2-a98fd74b2415",
+      "createdAt": "2026-03-27T21:45:53.396Z"
+    }
+  ]
 }

@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ override: true });
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -92,8 +92,9 @@ function proxmoxRequest(node, method, endpoint, body = null) {
       method,
       headers: {
         Authorization: authHeader,
-        'Content-Type': 'application/json',
-        'Content-Length': payload ? Buffer.byteLength(payload) : 0,
+        ...(payload
+          ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
+          : { 'Content-Length': 0 }),
       },
       timeout: 10000,
     };
@@ -558,6 +559,7 @@ app.post('/api/proxmox/vms/:id/start', requireAuth, async (req, res) => {
     await proxmoxRequest(node, 'POST', `/nodes/${node.name}/qemu/${vm.vmid}/status/start`);
     res.json({ success: true, message: `${vm.name} is starting` });
   } catch (err) {
+    console.error(`[start VM ${vm.vmid}@${node.name}]`, err.message);
     res.status(502).json({ error: err.message });
   }
 });

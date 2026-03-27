@@ -98,6 +98,12 @@
           </svg>
           <span>Add Device</span>
         </button>
+        <button class="btn-secondary" id="addNodeHeaderBtn" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          <span>Add Node</span>
+        </button>
         <button class="btn-primary" id="addVMBtn" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -112,6 +118,7 @@
       <nav class="tab-bar" role="tablist">
         <button class="tab-btn active" id="tabDevices" role="tab" aria-selected="true" aria-controls="panelDevices">Devices</button>
         <button class="tab-btn" id="tabVMs" role="tab" aria-selected="false" aria-controls="panelVMs">Virtual Machines</button>
+        <button class="tab-btn" id="tabAll" role="tab" aria-selected="false" aria-controls="panelAll" style="display:none">All</button>
       </nav>
 
       <!-- ─── Devices Panel ───────────────────────────────────────── -->
@@ -174,6 +181,11 @@
             <span>Add Proxmox Node</span>
           </button>
         </div>
+      </div>
+
+      <!-- ─── All Panel ────────────────────────────────────────────── -->
+      <div id="panelAll" role="tabpanel" style="display:none">
+        <div id="allGrid"></div>
       </div>
     </main>
   </div>

@@ -173,17 +173,24 @@ async function lockApp() {
 function switchTab(tab) {
   activeTab = tab;
   const isDevices = tab === 'devices';
+  const isVMs = tab === 'vms';
+  const isAll = tab === 'all';
 
   document.getElementById('panelDevices').style.display = isDevices ? '' : 'none';
-  document.getElementById('panelVMs').style.display = isDevices ? 'none' : '';
+  document.getElementById('panelVMs').style.display = isVMs ? '' : 'none';
+  document.getElementById('panelAll').style.display = isAll ? '' : 'none';
   document.getElementById('tabDevices').classList.toggle('active', isDevices);
-  document.getElementById('tabVMs').classList.toggle('active', !isDevices);
+  document.getElementById('tabVMs').classList.toggle('active', isVMs);
+  document.getElementById('tabAll').classList.toggle('active', isAll);
   document.getElementById('tabDevices').setAttribute('aria-selected', String(isDevices));
-  document.getElementById('tabVMs').setAttribute('aria-selected', String(!isDevices));
+  document.getElementById('tabVMs').setAttribute('aria-selected', String(isVMs));
+  document.getElementById('tabAll').setAttribute('aria-selected', String(isAll));
   document.getElementById('addDeviceBtn').style.display = isDevices ? '' : 'none';
-  document.getElementById('addVMBtn').style.display = isDevices ? 'none' : '';
+  document.getElementById('addNodeHeaderBtn').style.display = isVMs ? '' : 'none';
+  document.getElementById('addVMBtn').style.display = isVMs ? '' : 'none';
 
-  if (!isDevices) fetchVMsWithStatus();
+  if (isVMs || isAll) fetchVMsWithStatus();
+  if (isAll) renderAll();
 }
 
 // ─── Devices ──────────────────────────────────────────────────────────────────
@@ -203,12 +210,14 @@ function renderDevices() {
   if (!devices.length) {
     grid.style.display = 'none';
     empty.style.display = '';
+    updateAllTab();
     return;
   }
 
   grid.style.display = 'grid';
   empty.style.display = 'none';
   grid.innerHTML = devices.map(deviceCard).join('');
+  updateAllTab();
 }
 
 function deviceCard(d) {
@@ -382,6 +391,7 @@ async function fetchVMs() {
 async function fetchVMsWithStatus() {
   await fetchVMs();
   renderVMs();
+  if (activeTab === 'all') renderAll();
 
   if (!vms.length) return;
 
@@ -407,6 +417,7 @@ function renderVMs() {
     grid.style.display = 'none';
     empty.style.display = 'none';
     noNodes.style.display = '';
+    updateAllTab();
     return;
   }
 
@@ -414,6 +425,7 @@ function renderVMs() {
     grid.style.display = 'none';
     empty.style.display = '';
     noNodes.style.display = 'none';
+    updateAllTab();
     return;
   }
 
@@ -421,6 +433,25 @@ function renderVMs() {
   empty.style.display = 'none';
   noNodes.style.display = 'none';
   grid.innerHTML = vms.map(vmCard).join('');
+  updateAllTab();
+}
+
+function updateAllTab() {
+  const show = devices.length > 0 && vms.length > 0;
+  document.getElementById('tabAll').style.display = show ? '' : 'none';
+  if (!show && activeTab === 'all') switchTab('devices');
+}
+
+function renderAll() {
+  const grid = document.getElementById('allGrid');
+  let html = '';
+  if (devices.length) {
+    html += `<div class="all-section-label">Devices</div><div class="device-grid">${devices.map(deviceCard).join('')}</div>`;
+  }
+  if (vms.length) {
+    html += `<div class="all-section-label">Virtual Machines</div><div class="device-grid">${vms.map(vmCard).join('')}</div>`;
+  }
+  grid.innerHTML = html;
 }
 
 function vmCard(vm) {
@@ -482,27 +513,26 @@ function vmCard(vm) {
 }
 
 function updateVMStatusBadge(vmId, statusData) {
-  const card = document.querySelector(`[data-vm-id="${vmId}"]`);
-  if (!card) return;
-
-  const badge = card.querySelector('.status-badge');
-  if (badge) {
-    badge.className = `status-badge status-${statusData.status === 'running' ? 'running' : statusData.status === 'stopped' ? 'stopped' : 'unknown'}`;
-    badge.textContent = statusData.status;
-  }
-
-  const meta = card.querySelector('.device-meta');
-  let uptimeEl = card.querySelector('.device-last-wake');
-  if (statusData.status === 'running' && statusData.uptime) {
-    if (!uptimeEl) {
-      uptimeEl = document.createElement('p');
-      uptimeEl.className = 'device-last-wake';
-      meta.appendChild(uptimeEl);
+  document.querySelectorAll(`[data-vm-id="${vmId}"]`).forEach((card) => {
+    const badge = card.querySelector('.status-badge');
+    if (badge) {
+      badge.className = `status-badge status-${statusData.status === 'running' ? 'running' : statusData.status === 'stopped' ? 'stopped' : 'unknown'}`;
+      badge.textContent = statusData.status;
     }
-    uptimeEl.textContent = `Up ${formatUptime(statusData.uptime)}`;
-  } else if (uptimeEl) {
-    uptimeEl.remove();
-  }
+
+    const meta = card.querySelector('.device-meta');
+    let uptimeEl = card.querySelector('.device-last-wake');
+    if (statusData.status === 'running' && statusData.uptime) {
+      if (!uptimeEl) {
+        uptimeEl = document.createElement('p');
+        uptimeEl.className = 'device-last-wake';
+        meta.appendChild(uptimeEl);
+      }
+      uptimeEl.textContent = `Up ${formatUptime(statusData.uptime)}`;
+    } else if (uptimeEl) {
+      uptimeEl.remove();
+    }
+  });
 }
 
 async function startVM(id) {
@@ -868,6 +898,7 @@ function bindEvents() {
   // Tabs
   document.getElementById('tabDevices').addEventListener('click', () => switchTab('devices'));
   document.getElementById('tabVMs').addEventListener('click', () => switchTab('vms'));
+  document.getElementById('tabAll').addEventListener('click', () => switchTab('all'));
 
   // Devices
   document.getElementById('addDeviceBtn').addEventListener('click', () => openDeviceModal());
@@ -887,6 +918,7 @@ function bindEvents() {
   });
 
   // VMs
+  document.getElementById('addNodeHeaderBtn').addEventListener('click', openNodeModal);
   document.getElementById('addVMBtn').addEventListener('click', () => openVMModal());
   document.getElementById('vmEmptyAddBtn').addEventListener('click', () => openVMModal());
   document.getElementById('vmGoToSettingsBtn').addEventListener('click', openNodeModal);
@@ -906,6 +938,23 @@ function bindEvents() {
     else if (stopBtn) stopVM(stopBtn.dataset.vmId);
     else if (editBtn) openVMModal(vms.find((v) => v.id === editBtn.dataset.vmId));
     else if (deleteBtn) confirmDeleteVM(deleteBtn.dataset.vmId);
+  });
+
+  document.getElementById('allGrid').addEventListener('click', (e) => {
+    const startBtn = e.target.closest('.vm-start-btn');
+    const stopBtn = e.target.closest('.vm-stop-btn');
+    const vmEditBtn = e.target.closest('.btn-edit[data-vm-id]');
+    const vmDeleteBtn = e.target.closest('.btn-delete[data-vm-id]');
+    const powerBtn = e.target.closest('.power-btn');
+    const deviceEditBtn = e.target.closest('.btn-edit[data-id]');
+    const deviceDeleteBtn = e.target.closest('.btn-delete[data-id]');
+    if (startBtn) startVM(startBtn.dataset.vmId);
+    else if (stopBtn) stopVM(stopBtn.dataset.vmId);
+    else if (vmEditBtn) openVMModal(vms.find((v) => v.id === vmEditBtn.dataset.vmId));
+    else if (vmDeleteBtn) confirmDeleteVM(vmDeleteBtn.dataset.vmId);
+    else if (powerBtn) wakeDevice(powerBtn.dataset.id);
+    else if (deviceEditBtn) openDeviceModal(devices.find((d) => d.id === deviceEditBtn.dataset.id));
+    else if (deviceDeleteBtn) confirmDelete(deviceDeleteBtn.dataset.id);
   });
 
   // Settings
