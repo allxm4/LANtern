@@ -1,17 +1,22 @@
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const dgram = require('dgram');
 const crypto = require('crypto');
+const https = require('https');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const DEVICES_FILE = process.env.DEVICES_FILE || '/config/devices.json';
 const CONFIG_FILE = process.env.CONFIG_FILE || '/config/config.json';
+const PROXMOX_FILE = process.env.PROXMOX_FILE || '/config/proxmox.json';
 const SESSION_TTL = (parseInt(process.env.SESSION_TTL_HOURS) || 8) * 60 * 60 * 1000;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// ─── Config / Devices ────────────────────────────────────────────────────────
 
 function loadConfig() {
   try {
@@ -47,6 +52,81 @@ function saveDevices(devices) {
   fs.writeFileSync(DEVICES_FILE, JSON.stringify(devices, null, 2));
 }
 
+// ─── Proxmox Config ───────────────────────────────────────────────────────────
+
+function loadProxmox() {
+  try {
+    if (!fs.existsSync(PROXMOX_FILE)) {
+      const dir = path.dirname(PROXMOX_FILE);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(PROXMOX_FILE, JSON.stringify({ nodes: [], vms: [] }, null, 2));
+    }
+    return JSON.parse(fs.readFileSync(PROXMOX_FILE, 'utf8'));
+  } catch {
+    return { nodes: [], vms: [] };
+  }
+}
+
+function saveProxmox(data) {
+  fs.writeFileSync(PROXMOX_FILE, JSON.stringify(data, null, 2));
+}
+
+// ─── Proxmox HTTP Helper ──────────────────────────────────────────────────────
+// Uses a per-request agent with rejectUnauthorized:false to support
+// Proxmox's self-signed certificates without disabling TLS globally.
+
+function proxmoxRequest(node, method, endpoint, body = null) {
+  return new Promise((resolve, reject) => {
+    const [hostname, portStr] = node.host.split(':');
+    const port = parseInt(portStr) || 8006;
+    const authHeader = `PVEAPIToken=${node.user}!${node.tokenName}=${node.tokenValue}`;
+    const payload = body ? JSON.stringify(body) : null;
+
+    const agent = new https.Agent({ rejectUnauthorized: false });
+
+    const options = {
+      agent,
+      hostname,
+      port,
+      path: `/api2/json${endpoint}`,
+      method,
+      headers: {
+        Authorization: authHeader,
+        'Content-Type': 'application/json',
+        'Content-Length': payload ? Buffer.byteLength(payload) : 0,
+      },
+      timeout: 10000,
+    };
+
+    const req = https.request(options, (res) => {
+      let raw = '';
+      res.on('data', (chunk) => (raw += chunk));
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(raw);
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(parsed);
+          } else {
+            const msg = parsed?.errors
+              ? Object.values(parsed.errors).join(', ')
+              : parsed?.message || `HTTP ${res.statusCode}`;
+            reject(new Error(msg));
+          }
+        } catch {
+          reject(new Error(`HTTP ${res.statusCode}: unparseable response`));
+        }
+      });
+    });
+
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('Request timed out')); });
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
+// ─── Validation Helpers ───────────────────────────────────────────────────────
+
 function isValidIPv4(ip) {
   return /^(\d{1,3}\.){3}\d{1,3}$/.test(ip) && ip.split('.').every((n) => parseInt(n) <= 255);
 }
@@ -56,6 +136,8 @@ function normalizeMAC(mac) {
   if (clean.length !== 12) throw new Error('Invalid MAC address');
   return clean.toUpperCase().match(/.{2}/g).join(':');
 }
+
+// ─── Wake on LAN ──────────────────────────────────────────────────────────────
 
 function sendMagicPacket(mac, broadcastAddress = '255.255.255.255', port = 9) {
   return new Promise((resolve, reject) => {
@@ -79,6 +161,8 @@ function sendMagicPacket(mac, broadcastAddress = '255.255.255.255', port = 9) {
     });
   });
 }
+
+// ─── Auth ────────────────────────────────────────────────────────────────────
 
 const sessions = new Map();
 
@@ -147,6 +231,8 @@ function requireAuth(req, res, next) {
   res.status(401).json({ error: 'Unauthorized', requiresPin: true });
 }
 
+// ─── Auth Routes ──────────────────────────────────────────────────────────────
+
 app.get('/api/auth/status', (req, res) => {
   const config = loadConfig();
   const token = req.headers['x-session-token'];
@@ -213,6 +299,8 @@ app.post('/api/auth/pin', requireAuth, (req, res) => {
   saveConfig(config);
   res.json({ success: true, pinEnabled: true });
 });
+
+// ─── Device Routes ────────────────────────────────────────────────────────────
 
 app.get('/api/devices', requireAuth, (req, res) => {
   res.json(loadDevices());
@@ -299,6 +387,8 @@ app.delete('/api/devices/:id', requireAuth, (req, res) => {
   res.json({ success: true });
 });
 
+// ─── Wake Routes ──────────────────────────────────────────────────────────────
+
 app.post('/api/wake/:id', requireAuth, async (req, res) => {
   const devices = loadDevices();
   const device = devices.find((d) => d.id === req.params.id);
@@ -327,8 +417,171 @@ app.post('/api/wake/mac/:mac', requireAuth, async (req, res) => {
   }
 });
 
+// ─── Proxmox Node Routes ──────────────────────────────────────────────────────
+
+app.get('/api/proxmox/nodes', requireAuth, (_req, res) => {
+  const { nodes } = loadProxmox();
+  // Never expose token credentials in responses
+  res.json(nodes.map(({ id, name, host, user, tokenName }) => ({ id, name, host, user, tokenName })));
+});
+
+app.post('/api/proxmox/nodes', requireAuth, (req, res) => {
+  const { name, host, user, tokenName, tokenValue } = req.body;
+
+  if (!name?.trim()) return res.status(400).json({ error: 'Node name is required' });
+  if (name.trim().length > 64) return res.status(400).json({ error: 'Node name must be 64 characters or fewer' });
+  if (/[/\\]/.test(name.trim())) return res.status(400).json({ error: 'Node name must not contain slashes' });
+  if (!host?.trim()) return res.status(400).json({ error: 'Host is required' });
+  if (!user?.trim()) return res.status(400).json({ error: 'API user is required' });
+  if (!tokenName?.trim()) return res.status(400).json({ error: 'Token name is required' });
+  if (!tokenValue?.trim()) return res.status(400).json({ error: 'Token value is required' });
+
+  const data = loadProxmox();
+  if (data.nodes.some((n) => n.name === name.trim())) {
+    return res.status(409).json({ error: `Node "${name.trim()}" already exists` });
+  }
+
+  const node = {
+    id: crypto.randomUUID(),
+    name: name.trim(),
+    host: host.trim(),
+    user: user.trim(),
+    tokenName: tokenName.trim(),
+    tokenValue: tokenValue.trim(),
+  };
+  data.nodes.push(node);
+  saveProxmox(data);
+
+  const { tokenValue: _tv, ...safe } = node;
+  res.status(201).json(safe);
+});
+
+app.delete('/api/proxmox/nodes/:id', requireAuth, (req, res) => {
+  const data = loadProxmox();
+  const idx = data.nodes.findIndex((n) => n.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Node not found' });
+
+  // Cascade: remove all VMs on this node atomically
+  data.vms = data.vms.filter((v) => v.nodeId !== req.params.id);
+  data.nodes.splice(idx, 1);
+  saveProxmox(data);
+  res.json({ success: true });
+});
+
+// ─── Proxmox VM Routes ────────────────────────────────────────────────────────
+
+app.get('/api/proxmox/vms', requireAuth, (_req, res) => {
+  const { nodes, vms } = loadProxmox();
+  const nodeMap = Object.fromEntries(nodes.map((n) => [n.id, n]));
+  res.json(vms.map((v) => ({ ...v, nodeName: nodeMap[v.nodeId]?.name || 'unknown' })));
+});
+
+app.post('/api/proxmox/vms', requireAuth, (req, res) => {
+  const { name, vmid, nodeId } = req.body;
+
+  if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
+  if (name.trim().length > 64) return res.status(400).json({ error: 'Name must be 64 characters or fewer' });
+  if (!vmid) return res.status(400).json({ error: 'VM ID is required' });
+  if (!/^\d+$/.test(String(vmid))) return res.status(400).json({ error: 'VM ID must be a positive integer' });
+  if (!nodeId) return res.status(400).json({ error: 'Node is required' });
+
+  const data = loadProxmox();
+  const node = data.nodes.find((n) => n.id === nodeId);
+  if (!node) return res.status(400).json({ error: 'Node not found' });
+
+  const vm = {
+    id: crypto.randomUUID(),
+    name: name.trim(),
+    vmid: String(vmid),
+    nodeId,
+    createdAt: new Date().toISOString(),
+  };
+  data.vms.push(vm);
+  saveProxmox(data);
+  res.status(201).json({ ...vm, nodeName: node.name });
+});
+
+app.put('/api/proxmox/vms/:id', requireAuth, (req, res) => {
+  const { name, vmid, nodeId } = req.body;
+  const data = loadProxmox();
+  const idx = data.vms.findIndex((v) => v.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'VM not found' });
+
+  if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
+  if (name.trim().length > 64) return res.status(400).json({ error: 'Name must be 64 characters or fewer' });
+  if (!vmid) return res.status(400).json({ error: 'VM ID is required' });
+  if (!/^\d+$/.test(String(vmid))) return res.status(400).json({ error: 'VM ID must be a positive integer' });
+  if (!nodeId) return res.status(400).json({ error: 'Node is required' });
+
+  const node = data.nodes.find((n) => n.id === nodeId);
+  if (!node) return res.status(400).json({ error: 'Node not found' });
+
+  data.vms[idx] = { ...data.vms[idx], name: name.trim(), vmid: String(vmid), nodeId, updatedAt: new Date().toISOString() };
+  saveProxmox(data);
+  res.json({ ...data.vms[idx], nodeName: node.name });
+});
+
+app.delete('/api/proxmox/vms/:id', requireAuth, (req, res) => {
+  const data = loadProxmox();
+  const filtered = data.vms.filter((v) => v.id !== req.params.id);
+  if (filtered.length === data.vms.length) return res.status(404).json({ error: 'VM not found' });
+  data.vms = filtered;
+  saveProxmox(data);
+  res.json({ success: true });
+});
+
+app.get('/api/proxmox/vms/:id/status', requireAuth, async (req, res) => {
+  const { nodes, vms } = loadProxmox();
+  const vm = vms.find((v) => v.id === req.params.id);
+  if (!vm) return res.status(404).json({ error: 'VM not found' });
+  const node = nodes.find((n) => n.id === vm.nodeId);
+  if (!node) return res.status(400).json({ error: 'Node not configured' });
+
+  try {
+    const result = await proxmoxRequest(node, 'GET', `/nodes/${node.name}/qemu/${vm.vmid}/status/current`);
+    const { status, uptime } = result.data || {};
+    res.json({ status: status || 'unknown', uptime: uptime || 0 });
+  } catch (err) {
+    // Return unknown rather than 500 so the UI handles it gracefully
+    res.json({ status: 'unknown', uptime: 0, error: err.message });
+  }
+});
+
+app.post('/api/proxmox/vms/:id/start', requireAuth, async (req, res) => {
+  const { nodes, vms } = loadProxmox();
+  const vm = vms.find((v) => v.id === req.params.id);
+  if (!vm) return res.status(404).json({ error: 'VM not found' });
+  const node = nodes.find((n) => n.id === vm.nodeId);
+  if (!node) return res.status(400).json({ error: 'Node not configured' });
+
+  try {
+    await proxmoxRequest(node, 'POST', `/nodes/${node.name}/qemu/${vm.vmid}/status/start`);
+    res.json({ success: true, message: `${vm.name} is starting` });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+app.post('/api/proxmox/vms/:id/stop', requireAuth, async (req, res) => {
+  const { nodes, vms } = loadProxmox();
+  const vm = vms.find((v) => v.id === req.params.id);
+  if (!vm) return res.status(404).json({ error: 'VM not found' });
+  const node = nodes.find((n) => n.id === vm.nodeId);
+  if (!node) return res.status(400).json({ error: 'Node not configured' });
+
+  try {
+    await proxmoxRequest(node, 'POST', `/nodes/${node.name}/qemu/${vm.vmid}/status/shutdown`, { timeout: 30 });
+    res.json({ success: true, message: `${vm.name} is shutting down` });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// ─── Health & SPA Fallback ────────────────────────────────────────────────────
+
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', devices: loadDevices().length });
+  const { nodes, vms } = loadProxmox();
+  res.json({ status: 'ok', devices: loadDevices().length, proxmoxNodes: nodes.length, proxmoxVMs: vms.length });
 });
 
 app.get('*', (req, res) => {
@@ -336,7 +589,8 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Wake on LAN app running on http://0.0.0.0:${PORT}`);
-  console.log(`Devices file: ${DEVICES_FILE}`);
-  console.log(`Config file:  ${CONFIG_FILE}`);
+  console.log(`LANtern running on http://0.0.0.0:${PORT}`);
+  console.log(`Devices file:  ${DEVICES_FILE}`);
+  console.log(`Config file:   ${CONFIG_FILE}`);
+  console.log(`Proxmox file:  ${PROXMOX_FILE}`);
 });

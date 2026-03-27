@@ -610,3 +610,184 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+
+/* ─── Tab Bar ───────────────────────────────────────────────────────── */
+.tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+}
+
+.tab-btn {
+  padding: 10px 16px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-2);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color var(--transition), border-color var(--transition), background var(--transition);
+  white-space: nowrap;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.tab-btn:hover { color: var(--text-1); background: var(--surface-2); }
+
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  background: transparent;
+}
+
+/* ─── VM Card ───────────────────────────────────────────────────────── */
+.vm-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+
+.vm-title-row .device-name { margin-bottom: 0; }
+
+/* ─── Status Badge ──────────────────────────────────────────────────── */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 100px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: lowercase;
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+}
+
+.status-running {
+  background: var(--success-dim);
+  color: var(--success);
+  border-color: rgba(34, 197, 94, 0.25);
+}
+
+.status-stopped {
+  background: var(--surface-2);
+  color: var(--text-3);
+  border-color: var(--border);
+}
+
+.status-unknown, .status-loading {
+  background: var(--surface-2);
+  color: var(--text-3);
+  border-color: var(--border);
+  opacity: 0.7;
+}
+
+/* ─── VM Action Buttons ─────────────────────────────────────────────── */
+.vm-action-btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.vm-action-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  transition: background var(--transition), border-color var(--transition),
+              color var(--transition), box-shadow var(--transition), transform var(--transition);
+  flex-shrink: 0;
+}
+
+.vm-action-btn svg { width: 16px; height: 16px; }
+.vm-action-btn:active { transform: scale(0.95); }
+
+.vm-start-btn:hover {
+  background: var(--success-dim);
+  border-color: var(--success);
+  color: var(--success);
+  box-shadow: 0 0 14px var(--success-glow);
+  transform: scale(1.05);
+}
+
+.vm-stop-btn:hover {
+  background: var(--danger-dim);
+  border-color: var(--danger);
+  color: var(--danger);
+  box-shadow: 0 0 14px var(--danger-glow);
+  transform: scale(1.05);
+}
+
+.vm-action-btn.sending {
+  opacity: 0.5;
+  cursor: wait;
+  pointer-events: none;
+}
+
+/* ─── Node Rows (Settings) ──────────────────────────────────────────── */
+.node-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.node-row:last-child { border-bottom: none; }
+
+.node-row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.node-row-name { font-size: 0.875rem; font-weight: 600; }
+
+.node-row-host {
+  font-size: 0.75rem;
+  color: var(--text-2);
+  font-family: 'SF Mono', 'Fira Code', ui-monospace, monospace;
+  word-break: break-all;
+}
+
+/* ─── Select Input ──────────────────────────────────────────────────── */
+.form-group select {
+  padding: 10px 32px 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-1);
+  font-size: 0.9rem;
+  font-family: inherit;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  outline: none;
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238892a4' stroke-width='2' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 16px;
+}
+
+.form-group select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+
+/* Inline code in hints */
+.settings-desc code, .form-hint code {
+  font-family: 'SF Mono', 'Fira Code', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+}

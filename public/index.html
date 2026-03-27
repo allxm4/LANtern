@@ -91,33 +91,90 @@
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
           </svg>
         </button>
+        <!-- Context-sensitive Add button -->
         <button class="btn-primary" id="addDeviceBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
           <span>Add Device</span>
         </button>
+        <button class="btn-primary" id="addVMBtn" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          <span>Add VM</span>
+        </button>
       </div>
     </header>
 
     <main class="main">
-      <div id="deviceGrid" class="device-grid"></div>
-      <div id="emptyState" class="empty-state" style="display:none">
-        <div class="empty-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-            <rect x="2" y="3" width="20" height="14" rx="2"/>
-            <line x1="8" y1="21" x2="16" y2="21"/>
-            <line x1="12" y1="17" x2="12" y2="21"/>
-          </svg>
+      <!-- ─── Tab Bar ─────────────────────────────────────────────── -->
+      <nav class="tab-bar" role="tablist">
+        <button class="tab-btn active" id="tabDevices" role="tab" aria-selected="true" aria-controls="panelDevices">Devices</button>
+        <button class="tab-btn" id="tabVMs" role="tab" aria-selected="false" aria-controls="panelVMs">Virtual Machines</button>
+      </nav>
+
+      <!-- ─── Devices Panel ───────────────────────────────────────── -->
+      <div id="panelDevices" role="tabpanel">
+        <div id="deviceGrid" class="device-grid"></div>
+        <div id="emptyState" class="empty-state" style="display:none">
+          <div class="empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+              <rect x="2" y="3" width="20" height="14" rx="2"/>
+              <line x1="8" y1="21" x2="16" y2="21"/>
+              <line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+          </div>
+          <h2>No devices yet</h2>
+          <p>Add your first device to start sending wake packets</p>
+          <button class="btn-primary" id="emptyAddBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            <span>Add Device</span>
+          </button>
         </div>
-        <h2>No devices yet</h2>
-        <p>Add your first device to start sending wake packets</p>
-        <button class="btn-primary" id="emptyAddBtn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-          <span>Add Device</span>
-        </button>
+      </div>
+
+      <!-- ─── Virtual Machines Panel ─────────────────────────────── -->
+      <div id="panelVMs" role="tabpanel" style="display:none">
+        <div id="vmGrid" class="device-grid"></div>
+        <div id="vmEmptyState" class="empty-state" style="display:none">
+          <div class="empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+              <rect x="2" y="2" width="20" height="8" rx="2"/>
+              <rect x="2" y="14" width="20" height="8" rx="2"/>
+              <line x1="6" y1="6" x2="6.01" y2="6"/>
+              <line x1="6" y1="18" x2="6.01" y2="18"/>
+            </svg>
+          </div>
+          <h2>No virtual machines</h2>
+          <p>Add your first VM to manage it from here</p>
+          <button class="btn-primary" id="vmEmptyAddBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            <span>Add VM</span>
+          </button>
+        </div>
+        <div id="vmNoNodesState" class="empty-state" style="display:none">
+          <div class="empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+          </div>
+          <h2>No Proxmox nodes configured</h2>
+          <p>Add a Proxmox node in Settings before adding virtual machines</p>
+          <button class="btn-primary" id="vmGoToSettingsBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+            <span>Open Settings</span>
+          </button>
+        </div>
       </div>
     </main>
   </div>
@@ -160,6 +217,82 @@
     </div>
   </div>
 
+  <!-- ─── Add / Edit VM Modal ─────────────────────────────────────────── -->
+  <div id="vmModal" class="modal-overlay" role="dialog" aria-labelledby="vmModalTitle" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="vmModalTitle">Add Virtual Machine</h2>
+        <button class="btn-icon" id="closeVMModal" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <form id="vmForm" novalidate>
+        <div class="form-group">
+          <label for="vmName">Display Name</label>
+          <input type="text" id="vmName" placeholder="My Server" required autocomplete="off" maxlength="64">
+        </div>
+        <div class="form-group">
+          <label for="vmVmid">VM ID</label>
+          <input type="text" id="vmVmid" placeholder="100" required autocomplete="off" inputmode="numeric" maxlength="10">
+          <p class="form-hint">The numeric ID shown in the Proxmox web interface.</p>
+        </div>
+        <div class="form-group">
+          <label for="vmNode">Node</label>
+          <select id="vmNode" required></select>
+          <p class="form-hint">The Proxmox node this VM runs on. Add nodes in Settings.</p>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="cancelVMBtn">Cancel</button>
+          <button type="submit" class="btn-primary" id="saveVMBtn">Save VM</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ─── Add Node Modal ───────────────────────────────────────────────── -->
+  <div id="nodeModal" class="modal-overlay" role="dialog" aria-labelledby="nodeModalTitle" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="nodeModalTitle">Add Proxmox Node</h2>
+        <button class="btn-icon" id="closeNodeModal" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <form id="nodeForm" novalidate>
+        <div class="form-group">
+          <label for="nodeName">Node Name</label>
+          <input type="text" id="nodeName" placeholder="pve" required autocomplete="off" maxlength="64">
+          <p class="form-hint">Must match the Proxmox node hostname exactly (case-sensitive), as shown in the PVE web UI.</p>
+        </div>
+        <div class="form-group">
+          <label for="nodeHost">Host</label>
+          <input type="text" id="nodeHost" placeholder="192.168.1.10:8006" required autocomplete="off" maxlength="128">
+        </div>
+        <div class="form-group">
+          <label for="nodeUser">API User</label>
+          <input type="text" id="nodeUser" placeholder="api@pve" required autocomplete="off" maxlength="64">
+          <p class="form-hint">Format: <code>user@realm</code> (e.g. <code>root@pam</code> or <code>api@pve</code>)</p>
+        </div>
+        <div class="form-group">
+          <label for="nodeTokenName">Token Name</label>
+          <input type="text" id="nodeTokenName" placeholder="mytoken" required autocomplete="off" maxlength="64">
+        </div>
+        <div class="form-group">
+          <label for="nodeTokenValue">Token Value</label>
+          <input type="password" id="nodeTokenValue" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" required autocomplete="new-password" maxlength="128">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="cancelNodeBtn">Cancel</button>
+          <button type="submit" class="btn-primary" id="saveNodeBtn">Add Node</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- ─── Settings Modal ──────────────────────────────────────────────── -->
   <div id="settingsModal" class="modal-overlay" role="dialog" aria-labelledby="settingsTitle" style="display:none">
     <div class="modal">
@@ -172,6 +305,7 @@
         </button>
       </div>
 
+      <!-- PIN Lock -->
       <section class="settings-section">
         <div class="settings-section-header">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -216,6 +350,27 @@
             <button type="submit" class="btn-primary">Update PIN</button>
           </div>
         </form>
+      </section>
+
+      <!-- Proxmox Nodes -->
+      <section class="settings-section">
+        <div class="settings-section-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <rect x="2" y="2" width="20" height="8" rx="2"/>
+            <rect x="2" y="14" width="20" height="8" rx="2"/>
+            <line x1="6" y1="6" x2="6.01" y2="6"/>
+            <line x1="6" y1="18" x2="6.01" y2="18"/>
+          </svg>
+          <h3>Proxmox Nodes</h3>
+        </div>
+        <p class="settings-desc">Configure Proxmox nodes to manage virtual machines. Credentials are stored in <code>proxmox.json</code> on the host.</p>
+        <div id="nodeList"></div>
+        <button type="button" class="btn-secondary" id="addNodeBtn" style="margin-top:12px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Add Node
+        </button>
       </section>
     </div>
   </div>

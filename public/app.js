@@ -1,13 +1,22 @@
 'use strict';
 
+// ─── State ───────────────────────────────────────────────────────────────────
+
 let devices = [];
-let editingId = null;
+let vms = [];
+let nodes = [];
+let vmStatuses = {};      // { [vmId]: { status, uptime } }
+let editingId = null;     // device being edited
+let editingVMId = null;   // VM being edited
+let activeTab = 'devices';
 let sessionToken = null;
 let pinEnabled = false;
 
 const TOKEN_KEY = 'LANtern_token';
 const TOKEN_EXP_KEY = 'LANtern_token_exp';
 const SESSION_CLIENT_HOURS = 8;
+
+// ─── Token Storage ────────────────────────────────────────────────────────────
 
 function getStoredToken() {
   const token = localStorage.getItem(TOKEN_KEY);
@@ -31,6 +40,8 @@ function clearToken() {
   sessionToken = null;
 }
 
+// ─── API Fetch ────────────────────────────────────────────────────────────────
+
 async function apiFetch(url, options = {}) {
   const headers = {
     ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
@@ -45,6 +56,8 @@ async function apiFetch(url, options = {}) {
   }
   return res;
 }
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
 
 async function init() {
   applyTheme(getSavedTheme());
@@ -68,8 +81,10 @@ async function checkAuth() {
   }
 
   revealApp();
-  await fetchDevices();
+  await Promise.all([fetchDevices(), fetchNodes()]);
 }
+
+// ─── PIN Screen ───────────────────────────────────────────────────────────────
 
 let pinBuffer = '';
 
@@ -125,7 +140,7 @@ async function submitPin() {
     sessionToken = data.token;
     document.getElementById('pinError').textContent = '';
     revealApp();
-    await fetchDevices();
+    await Promise.all([fetchDevices(), fetchNodes()]);
   } else {
     const dots = document.getElementById('pinDots');
     dots.classList.add('error', 'shake');
@@ -152,6 +167,26 @@ async function lockApp() {
   clearToken();
   await showPinScreen();
 }
+
+// ─── Tab Navigation ───────────────────────────────────────────────────────────
+
+function switchTab(tab) {
+  activeTab = tab;
+  const isDevices = tab === 'devices';
+
+  document.getElementById('panelDevices').style.display = isDevices ? '' : 'none';
+  document.getElementById('panelVMs').style.display = isDevices ? 'none' : '';
+  document.getElementById('tabDevices').classList.toggle('active', isDevices);
+  document.getElementById('tabVMs').classList.toggle('active', !isDevices);
+  document.getElementById('tabDevices').setAttribute('aria-selected', String(isDevices));
+  document.getElementById('tabVMs').setAttribute('aria-selected', String(!isDevices));
+  document.getElementById('addDeviceBtn').style.display = isDevices ? '' : 'none';
+  document.getElementById('addVMBtn').style.display = isDevices ? 'none' : '';
+
+  if (!isDevices) fetchVMsWithStatus();
+}
+
+// ─── Devices ──────────────────────────────────────────────────────────────────
 
 async function fetchDevices() {
   const res = await apiFetch('/api/devices');
@@ -330,8 +365,370 @@ async function deleteDevice(id) {
   else showToast('Failed to remove device', 'error');
 }
 
+// ─── Virtual Machines ─────────────────────────────────────────────────────────
+
+async function fetchNodes() {
+  const res = await apiFetch('/api/proxmox/nodes');
+  if (!res || !res.ok) return;
+  nodes = await res.json();
+}
+
+async function fetchVMs() {
+  const res = await apiFetch('/api/proxmox/vms');
+  if (!res || !res.ok) return;
+  vms = await res.json();
+}
+
+async function fetchVMsWithStatus() {
+  await fetchVMs();
+  renderVMs();
+
+  if (!vms.length) return;
+
+  // Fetch all statuses concurrently; each updates its badge as it resolves
+  await Promise.allSettled(vms.map(async (vm) => {
+    const res = await apiFetch(`/api/proxmox/vms/${vm.id}/status`);
+    if (!res || !res.ok) {
+      updateVMStatusBadge(vm.id, { status: 'unknown', uptime: 0 });
+      return;
+    }
+    const data = await res.json();
+    vmStatuses[vm.id] = data;
+    updateVMStatusBadge(vm.id, data);
+  }));
+}
+
+function renderVMs() {
+  const grid = document.getElementById('vmGrid');
+  const empty = document.getElementById('vmEmptyState');
+  const noNodes = document.getElementById('vmNoNodesState');
+
+  if (!nodes.length) {
+    grid.style.display = 'none';
+    empty.style.display = 'none';
+    noNodes.style.display = '';
+    return;
+  }
+
+  if (!vms.length) {
+    grid.style.display = 'none';
+    empty.style.display = '';
+    noNodes.style.display = 'none';
+    return;
+  }
+
+  grid.style.display = 'grid';
+  empty.style.display = 'none';
+  noNodes.style.display = 'none';
+  grid.innerHTML = vms.map(vmCard).join('');
+}
+
+function vmCard(vm) {
+  const s = vmStatuses[vm.id];
+  const statusClass = !s ? 'status-loading' : s.status === 'running' ? 'status-running' : s.status === 'stopped' ? 'status-stopped' : 'status-unknown';
+  const statusLabel = s ? s.status : '…';
+  const uptimeHtml = s?.status === 'running' && s.uptime
+    ? `<p class="device-last-wake">Up ${formatUptime(s.uptime)}</p>` : '';
+
+  return `
+    <article class="device-card" data-vm-id="${vm.id}">
+      <div class="device-meta">
+        <div class="vm-title-row">
+          <h3 class="device-name">${esc(vm.name)}</h3>
+          <span class="status-badge ${statusClass}">${statusLabel}</span>
+        </div>
+        <div class="device-detail">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <rect x="2" y="2" width="20" height="8" rx="2"/>
+            <rect x="2" y="14" width="20" height="8" rx="2"/>
+            <line x1="6" y1="6" x2="6.01" y2="6"/>
+            <line x1="6" y1="18" x2="6.01" y2="18"/>
+          </svg>
+          <span>VMID ${esc(vm.vmid)} · ${esc(vm.nodeName)}</span>
+        </div>
+        ${uptimeHtml}
+      </div>
+      <div class="card-bottom">
+        <div class="card-actions">
+          <button class="btn-icon btn-edit" data-vm-id="${vm.id}" title="Edit ${esc(vm.name)}" aria-label="Edit">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
+          <button class="btn-icon btn-delete" data-vm-id="${vm.id}" title="Remove ${esc(vm.name)}" aria-label="Remove">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14H6L5 6"/>
+              <path d="M10 11v6M14 11v6"/>
+              <path d="M9 6V4h6v2"/>
+            </svg>
+          </button>
+        </div>
+        <div class="vm-action-btns">
+          <button class="vm-action-btn vm-start-btn" data-vm-id="${vm.id}" title="Start ${esc(vm.name)}" aria-label="Start">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+          </button>
+          <button class="vm-action-btn vm-stop-btn" data-vm-id="${vm.id}" title="Shutdown ${esc(vm.name)}" aria-label="Shutdown">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <rect x="6" y="6" width="12" height="12" rx="2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </article>`;
+}
+
+function updateVMStatusBadge(vmId, statusData) {
+  const card = document.querySelector(`[data-vm-id="${vmId}"]`);
+  if (!card) return;
+
+  const badge = card.querySelector('.status-badge');
+  if (badge) {
+    badge.className = `status-badge status-${statusData.status === 'running' ? 'running' : statusData.status === 'stopped' ? 'stopped' : 'unknown'}`;
+    badge.textContent = statusData.status;
+  }
+
+  const meta = card.querySelector('.device-meta');
+  let uptimeEl = card.querySelector('.device-last-wake');
+  if (statusData.status === 'running' && statusData.uptime) {
+    if (!uptimeEl) {
+      uptimeEl = document.createElement('p');
+      uptimeEl.className = 'device-last-wake';
+      meta.appendChild(uptimeEl);
+    }
+    uptimeEl.textContent = `Up ${formatUptime(statusData.uptime)}`;
+  } else if (uptimeEl) {
+    uptimeEl.remove();
+  }
+}
+
+async function startVM(id) {
+  const vm = vms.find((v) => v.id === id);
+  if (!vm) return;
+  const btn = document.querySelector(`.vm-start-btn[data-vm-id="${id}"]`);
+  if (!btn || btn.classList.contains('sending')) return;
+
+  btn.classList.add('sending');
+  const res = await apiFetch(`/api/proxmox/vms/${id}/start`, { method: 'POST' });
+  btn.classList.remove('sending');
+
+  if (!res) return;
+  const data = await res.json();
+
+  if (res.ok) {
+    vmStatuses[id] = { status: 'running', uptime: 0 };
+    updateVMStatusBadge(id, vmStatuses[id]);
+    showToast(data.message || `${vm.name} is starting`, 'success');
+  } else {
+    showToast(data.error || 'Failed to start VM', 'error');
+  }
+}
+
+async function stopVM(id) {
+  const vm = vms.find((v) => v.id === id);
+  if (!vm) return;
+  const btn = document.querySelector(`.vm-stop-btn[data-vm-id="${id}"]`);
+  if (!btn || btn.classList.contains('sending')) return;
+
+  btn.classList.add('sending');
+  const res = await apiFetch(`/api/proxmox/vms/${id}/stop`, { method: 'POST' });
+  btn.classList.remove('sending');
+
+  if (!res) return;
+  const data = await res.json();
+
+  if (res.ok) {
+    vmStatuses[id] = { status: 'stopped', uptime: 0 };
+    updateVMStatusBadge(id, vmStatuses[id]);
+    showToast(data.message || `${vm.name} is shutting down`, 'success');
+  } else {
+    showToast(data.error || 'Failed to shutdown VM', 'error');
+  }
+}
+
+function openVMModal(vm = null) {
+  if (!nodes.length) {
+    showToast('Add a Proxmox node in Settings first', 'error');
+    return;
+  }
+
+  editingVMId = vm?.id || null;
+  document.getElementById('vmModalTitle').textContent = vm ? 'Edit Virtual Machine' : 'Add Virtual Machine';
+  document.getElementById('saveVMBtn').textContent = vm ? 'Update VM' : 'Save VM';
+  document.getElementById('vmName').value = vm?.name || '';
+  document.getElementById('vmVmid').value = vm?.vmid || '';
+
+  const sel = document.getElementById('vmNode');
+  sel.innerHTML = nodes.map((n) =>
+    `<option value="${n.id}" ${vm?.nodeId === n.id ? 'selected' : ''}>${esc(n.name)} (${esc(n.host)})</option>`
+  ).join('');
+
+  ['vmName', 'vmVmid'].forEach((id) => document.getElementById(id).classList.remove('invalid'));
+
+  openOverlay('vmModal');
+  setTimeout(() => document.getElementById('vmName').focus(), 50);
+}
+
+function closeVMModal() {
+  closeOverlay('vmModal');
+  setTimeout(() => { document.getElementById('vmForm').reset(); editingVMId = null; }, 300);
+}
+
+async function submitVM(e) {
+  e.preventDefault();
+  const name = document.getElementById('vmName').value.trim();
+  const vmid = document.getElementById('vmVmid').value.trim();
+  const nodeId = document.getElementById('vmNode').value;
+
+  if (!name) { document.getElementById('vmName').classList.add('invalid'); return; }
+  if (!vmid || !/^\d+$/.test(vmid)) { document.getElementById('vmVmid').classList.add('invalid'); return; }
+
+  const saveBtn = document.getElementById('saveVMBtn');
+  saveBtn.disabled = true;
+
+  const res = await apiFetch(
+    editingVMId ? `/api/proxmox/vms/${editingVMId}` : '/api/proxmox/vms',
+    { method: editingVMId ? 'PUT' : 'POST', body: JSON.stringify({ name, vmid, nodeId }) }
+  );
+
+  saveBtn.disabled = false;
+  if (!res) return;
+
+  const data = await res.json();
+  if (res.ok) {
+    closeVMModal();
+    await fetchVMsWithStatus();
+    showToast(editingVMId ? 'VM updated' : 'VM added', 'success');
+  } else {
+    showToast(data.error || 'Failed to save VM', 'error');
+  }
+}
+
+function confirmDeleteVM(id) {
+  const vm = vms.find((v) => v.id === id);
+  if (!vm) return;
+  document.getElementById('confirmMessage').textContent = `"${vm.name}" will be removed from LANtern. The VM itself will not be affected in Proxmox.`;
+
+  openOverlay('confirmOverlay');
+  document.getElementById('confirmOk').onclick = async () => { closeOverlay('confirmOverlay'); await deleteVM(id); };
+  document.getElementById('confirmCancel').onclick = () => closeOverlay('confirmOverlay');
+}
+
+async function deleteVM(id) {
+  const res = await apiFetch(`/api/proxmox/vms/${id}`, { method: 'DELETE' });
+  if (!res) return;
+  if (res.ok) {
+    delete vmStatuses[id];
+    await fetchVMsWithStatus();
+    showToast('VM removed', 'success');
+  } else {
+    showToast('Failed to remove VM', 'error');
+  }
+}
+
+// ─── Proxmox Node Management (in Settings) ────────────────────────────────────
+
+function renderNodeList() {
+  const list = document.getElementById('nodeList');
+  if (!nodes.length) {
+    list.innerHTML = '<p class="settings-desc" style="margin-top:8px">No nodes configured yet.</p>';
+    return;
+  }
+  list.innerHTML = nodes.map((n) => `
+    <div class="node-row">
+      <div class="node-row-info">
+        <span class="node-row-name">${esc(n.name)}</span>
+        <span class="node-row-host">${esc(n.host)}</span>
+      </div>
+      <button class="btn-icon btn-delete" data-node-id="${n.id}" title="Remove ${esc(n.name)}" aria-label="Remove node">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6l-1 14H6L5 6"/>
+          <path d="M10 11v6M14 11v6"/>
+          <path d="M9 6V4h6v2"/>
+        </svg>
+      </button>
+    </div>`).join('');
+}
+
+function openNodeModal() {
+  document.getElementById('nodeForm').reset();
+  ['nodeName', 'nodeHost', 'nodeUser', 'nodeTokenName', 'nodeTokenValue'].forEach((id) =>
+    document.getElementById(id).classList.remove('invalid')
+  );
+  openOverlay('nodeModal');
+  setTimeout(() => document.getElementById('nodeName').focus(), 50);
+}
+
+function closeNodeModal() {
+  closeOverlay('nodeModal');
+  setTimeout(() => document.getElementById('nodeForm').reset(), 300);
+}
+
+async function submitNode(e) {
+  e.preventDefault();
+  const name = document.getElementById('nodeName').value.trim();
+  const host = document.getElementById('nodeHost').value.trim();
+  const user = document.getElementById('nodeUser').value.trim();
+  const tokenName = document.getElementById('nodeTokenName').value.trim();
+  const tokenValue = document.getElementById('nodeTokenValue').value.trim();
+
+  const saveBtn = document.getElementById('saveNodeBtn');
+  saveBtn.disabled = true;
+
+  const res = await apiFetch('/api/proxmox/nodes', {
+    method: 'POST',
+    body: JSON.stringify({ name, host, user, tokenName, tokenValue }),
+  });
+
+  saveBtn.disabled = false;
+  if (!res) return;
+
+  const data = await res.json();
+  if (res.ok) {
+    closeNodeModal();
+    await fetchNodes();
+    renderNodeList();
+    showToast(`Node "${name}" added`, 'success');
+  } else {
+    showToast(data.error || 'Failed to add node', 'error');
+  }
+}
+
+function confirmDeleteNode(id) {
+  const node = nodes.find((n) => n.id === id);
+  if (!node) return;
+  const vmCount = vms.filter((v) => v.nodeId === id).length;
+  const vmNote = vmCount ? ` This will also remove ${vmCount} VM${vmCount !== 1 ? 's' : ''} on this node.` : '';
+  document.getElementById('confirmMessage').textContent = `Remove node "${node.name}"?${vmNote}`;
+
+  openOverlay('confirmOverlay');
+  document.getElementById('confirmOk').onclick = async () => { closeOverlay('confirmOverlay'); await deleteNode(id); };
+  document.getElementById('confirmCancel').onclick = () => closeOverlay('confirmOverlay');
+}
+
+async function deleteNode(id) {
+  const res = await apiFetch(`/api/proxmox/nodes/${id}`, { method: 'DELETE' });
+  if (!res) return;
+  if (res.ok) {
+    await fetchNodes();
+    await fetchVMs();
+    renderNodeList();
+    if (activeTab === 'vms') renderVMs();
+    showToast('Node removed', 'success');
+  } else {
+    showToast('Failed to remove node', 'error');
+  }
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+
 function openSettings() {
   refreshSettingsUI();
+  renderNodeList();
   openOverlay('settingsModal');
 }
 
@@ -451,6 +848,8 @@ async function removePin() {
   }
 }
 
+// ─── Overlay Helpers ──────────────────────────────────────────────────────────
+
 function openOverlay(id) {
   const el = document.getElementById(id);
   el.style.display = 'flex';
@@ -463,26 +862,20 @@ function closeOverlay(id) {
   setTimeout(() => { el.style.display = 'none'; }, 300);
 }
 
+// ─── Event Binding ────────────────────────────────────────────────────────────
+
 function bindEvents() {
+  // Tabs
+  document.getElementById('tabDevices').addEventListener('click', () => switchTab('devices'));
+  document.getElementById('tabVMs').addEventListener('click', () => switchTab('vms'));
+
+  // Devices
   document.getElementById('addDeviceBtn').addEventListener('click', () => openDeviceModal());
   document.getElementById('emptyAddBtn').addEventListener('click', () => openDeviceModal());
   document.getElementById('deviceForm').addEventListener('submit', submitDevice);
   document.getElementById('closeModal').addEventListener('click', closeDeviceModal);
   document.getElementById('cancelBtn').addEventListener('click', closeDeviceModal);
   document.getElementById('deviceMAC').addEventListener('input', (e) => e.target.classList.remove('invalid'));
-
-  document.getElementById('settingsBtn').addEventListener('click', openSettings);
-  document.getElementById('closeSettings').addEventListener('click', () => closeOverlay('settingsModal'));
-  document.getElementById('settingsModal').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeOverlay('settingsModal'); });
-  document.getElementById('setPinForm').addEventListener('submit', submitSetPin);
-  document.getElementById('changePinForm').addEventListener('submit', submitChangePin);
-  document.getElementById('removePinBtn').addEventListener('click', removePin);
-  ['currentPin', 'newPinChange', 'confirmPinChange', 'newPinSet', 'confirmPinSet'].forEach((id) => {
-    document.getElementById(id).addEventListener('input', (e) => e.target.classList.remove('invalid'));
-  });
-
-  document.getElementById('lockBtn').addEventListener('click', lockApp);
-  document.getElementById('themeToggle').addEventListener('click', toggleTheme);
 
   document.getElementById('deviceGrid').addEventListener('click', (e) => {
     const powerBtn = e.target.closest('.power-btn');
@@ -493,6 +886,54 @@ function bindEvents() {
     else if (deleteBtn) confirmDelete(deleteBtn.dataset.id);
   });
 
+  // VMs
+  document.getElementById('addVMBtn').addEventListener('click', () => openVMModal());
+  document.getElementById('vmEmptyAddBtn').addEventListener('click', () => openVMModal());
+  document.getElementById('vmGoToSettingsBtn').addEventListener('click', openSettings);
+  document.getElementById('vmForm').addEventListener('submit', submitVM);
+  document.getElementById('closeVMModal').addEventListener('click', closeVMModal);
+  document.getElementById('cancelVMBtn').addEventListener('click', closeVMModal);
+  ['vmName', 'vmVmid'].forEach((id) =>
+    document.getElementById(id).addEventListener('input', (e) => e.target.classList.remove('invalid'))
+  );
+
+  document.getElementById('vmGrid').addEventListener('click', (e) => {
+    const startBtn = e.target.closest('.vm-start-btn');
+    const stopBtn = e.target.closest('.vm-stop-btn');
+    const editBtn = e.target.closest('.btn-edit[data-vm-id]');
+    const deleteBtn = e.target.closest('.btn-delete[data-vm-id]');
+    if (startBtn) startVM(startBtn.dataset.vmId);
+    else if (stopBtn) stopVM(stopBtn.dataset.vmId);
+    else if (editBtn) openVMModal(vms.find((v) => v.id === editBtn.dataset.vmId));
+    else if (deleteBtn) confirmDeleteVM(deleteBtn.dataset.vmId);
+  });
+
+  // Settings
+  document.getElementById('settingsBtn').addEventListener('click', openSettings);
+  document.getElementById('closeSettings').addEventListener('click', () => closeOverlay('settingsModal'));
+  document.getElementById('settingsModal').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeOverlay('settingsModal'); });
+  document.getElementById('setPinForm').addEventListener('submit', submitSetPin);
+  document.getElementById('changePinForm').addEventListener('submit', submitChangePin);
+  document.getElementById('removePinBtn').addEventListener('click', removePin);
+  ['currentPin', 'newPinChange', 'confirmPinChange', 'newPinSet', 'confirmPinSet'].forEach((id) => {
+    document.getElementById(id).addEventListener('input', (e) => e.target.classList.remove('invalid'));
+  });
+
+  // Nodes (within settings)
+  document.getElementById('addNodeBtn').addEventListener('click', openNodeModal);
+  document.getElementById('closeNodeModal').addEventListener('click', closeNodeModal);
+  document.getElementById('cancelNodeBtn').addEventListener('click', closeNodeModal);
+  document.getElementById('nodeForm').addEventListener('submit', submitNode);
+  document.getElementById('nodeList').addEventListener('click', (e) => {
+    const deleteBtn = e.target.closest('.btn-delete[data-node-id]');
+    if (deleteBtn) confirmDeleteNode(deleteBtn.dataset.nodeId);
+  });
+
+  // Lock / Theme
+  document.getElementById('lockBtn').addEventListener('click', lockApp);
+  document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+
+  // Numpad
   document.getElementById('numpad').addEventListener('click', (e) => {
     const key = e.target.closest('.numpad-key');
     if (!key) return;
@@ -500,6 +941,7 @@ function bindEvents() {
     else if (key.dataset.digit !== undefined) appendPinDigit(key.dataset.digit);
   });
 
+  // Keyboard
   document.addEventListener('keydown', (e) => {
     if (document.getElementById('pinScreen').style.display !== 'none') {
       if (/^\d$/.test(e.key)) appendPinDigit(e.key);
@@ -508,11 +950,15 @@ function bindEvents() {
     }
     if (e.key === 'Escape') {
       closeDeviceModal();
+      closeVMModal();
+      closeNodeModal();
       closeOverlay('settingsModal');
       closeOverlay('confirmOverlay');
     }
   });
 }
+
+// ─── Theme ────────────────────────────────────────────────────────────────────
 
 function getSavedTheme() { return localStorage.getItem('theme') || 'dark'; }
 
@@ -528,6 +974,8 @@ function toggleTheme() {
   localStorage.setItem('theme', next);
   applyTheme(next);
 }
+
+// ─── Wake Tracking ────────────────────────────────────────────────────────────
 
 function saveLastWake(id) {
   const w = JSON.parse(localStorage.getItem('lastWake') || '{}');
@@ -547,6 +995,8 @@ function updateLastWakeDisplay(id) {
   p.textContent = `Last woken ${relativeTime(getLastWake(id))}`;
 }
 
+// ─── Time Helpers ─────────────────────────────────────────────────────────────
+
 function relativeTime(ts) {
   if (!ts) return '';
   const s = Math.floor((Date.now() - ts) / 1000);
@@ -558,6 +1008,17 @@ function relativeTime(ts) {
   if (h < 24) return `${h}h ago`;
   return `${Math.floor(h / 24)}d ago`;
 }
+
+function formatUptime(s) {
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ${m % 60}m`;
+  return `${Math.floor(h / 24)}d ${h % 24}h`;
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
 
 function showToast(message, type = 'info') {
   const container = document.getElementById('toastContainer');
@@ -571,6 +1032,8 @@ function showToast(message, type = 'info') {
   requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('show')));
   setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3200);
 }
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
 
 function esc(str) { const d = document.createElement('div'); d.textContent = String(str ?? ''); return d.innerHTML; }
 
