@@ -128,6 +128,16 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
 .btn-primary svg { width: 16px; height: 16px; }
 #addDeviceBtn, #addVMBtn, #addNodeHeaderBtn { width: 130px; justify-content: center; }
 #addNodeHeaderBtn svg { width: 16px; height: 16px; }
+
+@media (max-width: 599px) {
+  #addDeviceBtn, #addVMBtn, #addNodeHeaderBtn {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: var(--radius-sm);
+  }
+  #addDeviceBtn span, #addVMBtn span, #addNodeHeaderBtn span { display: none; }
+}
 .btn-primary:hover { background: var(--accent-hover); box-shadow: 0 0 0 3px var(--accent-dim); }
 .btn-primary:active { transform: scale(0.97); }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }

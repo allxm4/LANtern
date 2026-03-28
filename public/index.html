@@ -262,48 +262,6 @@
     </div>
   </div>
 
-  <!-- ─── Add Node Modal ───────────────────────────────────────────────── -->
-  <div id="nodeModal" class="modal-overlay" role="dialog" aria-labelledby="nodeModalTitle" style="display:none">
-    <div class="modal">
-      <div class="modal-header">
-        <h2 id="nodeModalTitle">Add Proxmox Node</h2>
-        <button class="btn-icon" id="closeNodeModal" aria-label="Close">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
-      </div>
-      <form id="nodeForm" novalidate>
-        <div class="form-group">
-          <label for="nodeName">Node Name</label>
-          <input type="text" id="nodeName" placeholder="pve" required autocomplete="off" maxlength="64">
-          <p class="form-hint">Must match the Proxmox node hostname exactly (case-sensitive), as shown in the PVE web UI.</p>
-        </div>
-        <div class="form-group">
-          <label for="nodeHost">Host</label>
-          <input type="text" id="nodeHost" placeholder="192.168.1.10:8006" required autocomplete="off" maxlength="128">
-        </div>
-        <div class="form-group">
-          <label for="nodeUser">API User</label>
-          <input type="text" id="nodeUser" placeholder="api@pve" required autocomplete="off" maxlength="64">
-          <p class="form-hint">Format: <code>user@realm</code> (e.g. <code>root@pam</code> or <code>api@pve</code>)</p>
-        </div>
-        <div class="form-group">
-          <label for="nodeTokenName">Token Name</label>
-          <input type="text" id="nodeTokenName" placeholder="mytoken" required autocomplete="off" maxlength="64">
-        </div>
-        <div class="form-group">
-          <label for="nodeTokenValue">Token Value</label>
-          <input type="password" id="nodeTokenValue" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" required autocomplete="new-password" maxlength="128">
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn-secondary" id="cancelNodeBtn">Cancel</button>
-          <button type="submit" class="btn-primary" id="saveNodeBtn">Add Node</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
   <!-- ─── Settings Modal ──────────────────────────────────────────────── -->
   <div id="settingsModal" class="modal-overlay" role="dialog" aria-labelledby="settingsTitle" style="display:none">
     <div class="modal">
@@ -383,6 +341,48 @@
           Add Node
         </button>
       </section>
+    </div>
+  </div>
+
+  <!-- ─── Add Node Modal (after settingsModal so it stacks on top) ────── -->
+  <div id="nodeModal" class="modal-overlay" role="dialog" aria-labelledby="nodeModalTitle" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="nodeModalTitle">Add Proxmox Node</h2>
+        <button class="btn-icon" id="closeNodeModal" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <form id="nodeForm" novalidate>
+        <div class="form-group">
+          <label for="nodeName">Node Name</label>
+          <input type="text" id="nodeName" placeholder="pve" required autocomplete="off" maxlength="64">
+          <p class="form-hint">Must match the Proxmox node hostname exactly (case-sensitive), as shown in the PVE web UI.</p>
+        </div>
+        <div class="form-group">
+          <label for="nodeHost">Host</label>
+          <input type="text" id="nodeHost" placeholder="192.168.1.10:8006" required autocomplete="off" maxlength="128">
+        </div>
+        <div class="form-group">
+          <label for="nodeUser">API User</label>
+          <input type="text" id="nodeUser" placeholder="api@pve" required autocomplete="off" maxlength="64">
+          <p class="form-hint">Format: <code>user@realm</code> (e.g. <code>root@pam</code> or <code>api@pve</code>)</p>
+        </div>
+        <div class="form-group">
+          <label for="nodeTokenName">Token Name</label>
+          <input type="text" id="nodeTokenName" placeholder="mytoken" required autocomplete="off" maxlength="64">
+        </div>
+        <div class="form-group">
+          <label for="nodeTokenValue">Token Value</label>
+          <input type="password" id="nodeTokenValue" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" required autocomplete="new-password" maxlength="128">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="cancelNodeBtn">Cancel</button>
+          <button type="submit" class="btn-primary" id="saveNodeBtn">Add Node</button>
+        </div>
+      </form>
     </div>
   </div>
 

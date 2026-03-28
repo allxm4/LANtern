@@ -81,7 +81,8 @@ async function checkAuth() {
   }
 
   revealApp();
-  await Promise.all([fetchDevices(), fetchNodes()]);
+  await Promise.all([fetchDevices(), fetchNodes(), fetchVMs()]);
+  updateAllTab();
 }
 
 // ─── PIN Screen ───────────────────────────────────────────────────────────────
@@ -140,7 +141,8 @@ async function submitPin() {
     sessionToken = data.token;
     document.getElementById('pinError').textContent = '';
     revealApp();
-    await Promise.all([fetchDevices(), fetchNodes()]);
+    await Promise.all([fetchDevices(), fetchNodes(), fetchVMs()]);
+    updateAllTab();
   } else {
     const dots = document.getElementById('pinDots');
     dots.classList.add('error', 'shake');
@@ -722,6 +724,7 @@ async function submitNode(e) {
     closeNodeModal();
     await fetchNodes();
     renderNodeList();
+    renderVMs();
     showToast(`Node "${name}" added`, 'success');
   } else {
     showToast(data.error || 'Failed to add node', 'error');
